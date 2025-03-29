@@ -336,7 +336,7 @@ def AKF(dt, Pos):
             # u_v2 = v2 * Pos[i]
             # u_v2 = v2 * Pos[i]**2 + v2 * Pos[i]
             print("u_v2 =", u_v2)
-            alpha = 1.0 # 越小越平滑
+            alpha = 0.0 # 越小越平滑
             # alpha = v1 / (v1 + v2)
             u_v = (1-alpha) * u_v1 + alpha * u_v2 - xm[1] # OLS fusion
             # u_v = (1-alpha) * vel_pred_gls_P + alpha * vel_pred_gls_Q - xm[1] # OLS/GLS fusion
@@ -379,8 +379,8 @@ def AKF(dt, Pos):
         G_hat = sum(delta_x_values_sqr[m - N:m]) / N
         ## 求S
         G = G_hat/G_tel
-        b = 1e-2
-        # b = 0.7
+        b = 1e-3
+        # b = 0.1
         b = 1
         S = np.maximum(b, G_hat/G_tel)
         # S = G_hat/G_tel
@@ -390,7 +390,7 @@ def AKF(dt, Pos):
         # if S > b:
         #     count1 = count1 + 1
         ## 求Q_hat
-        Q_hat = S * M *1e-2 #*1e1 #*1e-2
+        Q_hat = S * M *1e-3 #*1e1 #*1e-2
         print("Q_hat =", Q_hat)
         Q[1, 1] = Q_hat
         
@@ -420,7 +420,7 @@ def AKF(dt, Pos):
             a2 = (cov_xtrue_atrue / cov_xtrue_xtrue)
             # a2 = 2
             # u_a = a2 * (Pos[i] - x_mean) + a_mean - xm[2]
-            u_a = 1 * (Pos[i] - x_mean) + a_mean - xm[2]
+            u_a = 100 * (Pos[i] - x_mean) + a_mean - xm[2]
             # a2 = (Pm[0][2] / Pm[0][0])
             # u_a = u_p *0.1
             
@@ -474,7 +474,7 @@ def AKF(dt, Pos):
             # u_a2 = a2 * Pos[i]
             # u_a2 = a2 * Pos[i]**2 + a2 * Pos[i]
             print("u_a2 =", u_a2)   
-            alpha = 1.0 #越小越平滑 # u_v:0 ，u_a:0.1
+            alpha = 0.0 #越小越平滑 # u_v:0 ，u_a:0.1
             # alpha = a1 / (a1 + a2)
             u_a = (1-alpha) * u_a1 + alpha * u_a2 - xm[2] # OLS fusion
             # u_a = (1-alpha) * acc_pred_gls_P + alpha * acc_pred_gls_Q - xm[2] # OLS/GLS fusion
@@ -521,8 +521,8 @@ def AKF(dt, Pos):
         # print("G_tel=", G_tel)
         G = G_hat/G_tel
         c = 1e-4
-        # c = 1e6
-        # c = 0.5
+        c = 1e-3
+        # c = 0.1
         c = 1
         S = np.maximum(c, G_hat/G_tel) 
 
@@ -533,7 +533,7 @@ def AKF(dt, Pos):
         #     count2 = count2 + 1
 
         ## 求Q_hat
-        Q_hat = S * M *1e-1 #*1e3 #*1e-1
+        Q_hat = S * M *1e-3 #*1e3 #*1e-1
         Q[2, 2] = Q_hat
 
         # if np.abs(u_a_values[i]) > np.abs(u_a_values[i-1]):
@@ -607,11 +607,16 @@ def AKF(dt, Pos):
         Y_all = np.hstack([np.array(vele).reshape(-1, 1), np.array(acce).reshape(-1, 1)])  # shape (T, 2)
         P_list.append(Pm.copy())
         Q_list.append(Q.copy())
+        # 滑動視窗回歸
         vel_pred_data_gls_P, acc_pred_data_gls_P, vel_pred_gls_P, acc_pred_gls_P = LSR.gls_regression(X[m - N:m], Y_all[m - N:m], P_list[m - N:m])
         vel_pred_data_gls_Q, acc_pred_data_gls_Q, vel_pred_gls_Q, acc_pred_gls_Q = LSR.gls_regression(X[m - N:m], Y_all[m - N:m], Q_list[m - N:m])
+        #不滑動視窗回歸
+        # vel_pred_data_gls_P, acc_pred_data_gls_P, vel_pred_gls_P, acc_pred_gls_P = LSR.gls_regression(X, Y_all, P_list)
+        # vel_pred_data_gls_Q, acc_pred_data_gls_Q, vel_pred_gls_Q, acc_pred_gls_Q = LSR.gls_regression(X, Y_all, Q_list)
 
         # 儲存回歸的速度加速度資料
         vel_gls_data.append(vel_pred_gls_P)
+        # acc_pred_gls_P = acc_pred_gls_P*5
         acc_gls_data.append(acc_pred_gls_P)
        
         # print("vel_pred =", vel_pred)
