@@ -55,7 +55,7 @@ if __name__ == "__main__":
 
     # 劃出IMU加速度資料綠波前後
     # 用zero_phase_filter濾波:單位G
-    filtered_acc_x = zero_phase_filter.zero_phase_filter(3, 13, acc_x) # 50/12
+    filtered_acc_x = zero_phase_filter.zero_phase_filter(3, 13, acc_x) # 50/12 #13
     filtered_acc_y = zero_phase_filter.zero_phase_filter(3, 13, acc_y)
 
     # x方向
@@ -224,7 +224,7 @@ if __name__ == "__main__":
 
 #=================================================馬達速度估測=================================================#
     # 估測器
-    clip = 6000
+    clip = 2000
     pos_1_clip = pos_1[:clip]
     t2_clip = t2[:clip]
 
@@ -330,8 +330,8 @@ if __name__ == "__main__":
     # plt.plot(time2[287:752]-time2[287], (-acc_y/(l1/1000))[287:752], label="IMU acc", linewidth=1)
     # plt.plot(time2[287:752]-time2[287], (-filtered_acc_y/(l1/1000))[287:752], label="Filtered IMU acc", linewidth=1)
     # 8
-    plt.plot(time2[315:773]-time2[315], (-acc_y/(l1/1000))[315:773], label="IMU acc", linewidth=1)
-    plt.plot(time2[315:773]-time2[315], (-filtered_acc_y/(l1/1000))[315:773], label="Filtered IMU acc", linewidth=1)
+    # plt.plot(time2[315:773]-time2[315], (-acc_y/(l1/1000))[315:773], label="IMU acc", linewidth=1)
+    plt.plot(time2[315:773]-time2[315], (-filtered_acc_y/(l1/1000))[315:773], label="IMU acc", linewidth=1)
     plt.plot(t2_clip, acce, label="acc_AKF", linewidth=1)
     plt.plot(t2_clip, acc_LAE, label="acc_LAE", linewidth=1)
     plt.legend(loc='upper right')
