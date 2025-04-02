@@ -1,9 +1,11 @@
 import numpy as np
 import matplotlib.pyplot as plt
-import zero_phase_filter, AKF_modify, AKF_modify2, AKF, LAE, AKF_GLS, LSF
+import zero_phase_filter, calError
+import AKF_modify, AKF_modify2, AKF, LAE, AKF_GLS, LSF, CFD
 
 if __name__ == "__main__":
     dt1 = 0.01     
+    dt2 = 0.001   
     start_size1 = 0 # 1700
     data_size1 = 855 # 8:890 # 7:855
     t1 = np.arange(0, (data_size1 - start_size1)*dt1, dt1)
@@ -18,10 +20,10 @@ if __name__ == "__main__":
     gyro_x = data[start_size1:data_size1, 2] # rad/s
     gyro_y = data[start_size1:data_size1, 3] 
     gyro_z = data[start_size1:data_size1, 4]
-    acc_x = data[start_size1:data_size1, 5] # G
+    acc_x = data[start_size1:data_size1, 5] # m/s^2
     acc_y = data[start_size1:data_size1, 6] 
     acc_z = data[start_size1:data_size1, 7]  
-
+    
     # IMU資料上新的時間軸
     time2 = time - time[0]
     # print('time2 =', time2)
@@ -51,12 +53,24 @@ if __name__ == "__main__":
     vel_2 = data[start_size2:data_size2, 9] 
     tor_1 = data[start_size2:data_size2, 10] 
     tor_2 = data[start_size2:data_size2, 11] 
+
+#=============================================== 插植dt ===============================================
+    # 線性插植
+    gyro_x_interp = np.interp(t2, time2, gyro_x)
+    gyro_y_interp = np.interp(t2, time2, gyro_y)
+    gyro_z_interp = np.interp(t2, time2, gyro_z)  
+    acc_x_interp = np.interp(t2, time2, acc_y) 
+    acc_y_interp = np.interp(t2, time2, acc_y)
+    acc_z_interp = np.interp(t2, time2, acc_z) 
 #-------------------------------------------------------------------#
 
     # 劃出IMU加速度資料綠波前後
     # 用zero_phase_filter濾波:單位G
     filtered_acc_x = zero_phase_filter.zero_phase_filter(3, 13, acc_x) # 50/12 #13
     filtered_acc_y = zero_phase_filter.zero_phase_filter(3, 13, acc_y)
+
+    filtered_acc_x_interp = zero_phase_filter.zero_phase_filter(3, 13, acc_x_interp) # 50/12 #13
+    filtered_acc_y_interp = zero_phase_filter.zero_phase_filter(3, 13, acc_y_interp)
 
     # x方向
     plt.figure(figsize=(8, 4))
@@ -87,37 +101,6 @@ if __name__ == "__main__":
     plt.xlabel("t")
     plt.ylabel("acc(G)")
 
-    # # 對IMU加速度資料積分得速度:單位G
-    # filtered_vel_x = np.cumsum(filtered_acc_x) * dt1
-    # filtered_vel_y = np.cumsum(filtered_acc_y) * dt1
-    # # x方向
-    # plt.figure(figsize=(8, 4))
-    # plt.subplot(2, 1, 1)
-    # plt.title("X_axis", loc="center")
-    # plt.plot(time, -acc_x, label="acc_x", linewidth=1)
-    # plt.plot(time, -filtered_acc_x, label="filtered_acc_x", linewidth=1)
-    # plt.legend(loc='upper right')
-    # plt.xlabel("t")
-    # plt.ylabel("acc(G)")
-    # plt.subplot(2, 1, 2)
-    # plt.plot(time, -filtered_vel_x, label="filtered_vel_x", linewidth=1)
-    # plt.legend(loc='upper right')
-    # plt.xlabel("t")
-    # plt.ylabel("vel(G)")
-    # # y方向
-    # plt.figure(figsize=(8, 4))
-    # plt.subplot(2, 1, 1)
-    # plt.title("Y_axis", loc="center")
-    # plt.plot(time, -acc_y, label="acc_y", linewidth=1)
-    # plt.plot(time, -filtered_acc_y, label="filtered_acc_y", linewidth=1)
-    # plt.legend(loc='upper right')
-    # plt.xlabel("t")
-    # plt.ylabel("acc(G)")
-    # plt.subplot(2, 1, 2)
-    # plt.plot(time, filtered_vel_y, label="filtered_vel_y", linewidth=1)
-    # plt.legend(loc='upper right')
-    # plt.xlabel("t")
-    # plt.ylabel("vel(G)")
 #-------------------------------------------------------------------#
 
     # 將第一軸的end-effectore'關節空間中的速度'轉換成'卡式空間中的速度'
@@ -136,14 +119,15 @@ if __name__ == "__main__":
     # filtered_acc_y = filtered_acc_y * 9.81 #/ (r / 1000)
     # print('filtered_acc_x =', filtered_acc_x)
     # print('filtered_acc_y =', filtered_acc_y)
+
     # 計算速度rad/s
-    for i in range(len(filtered_acc_x)):
-        if i == 0:
-            filtered_vel_x = np.cumsum(filtered_acc_x) * (time[i] - 0)
-            filtered_vel_y = np.cumsum(filtered_acc_y) * (time[i] - 0)
-        else:
-            filtered_vel_x = np.cumsum(filtered_acc_x) * (time[i] - time[i-1])
-            filtered_vel_y = np.cumsum(filtered_acc_y) * (time[i] - time[i-1])
+    # for i in range(len(filtered_acc_x)):
+    #     if i == 0:
+    #         filtered_vel_x = np.cumsum(filtered_acc_x) * (time[i] - 0)
+    #         filtered_vel_y = np.cumsum(filtered_acc_y) * (time[i] - 0)
+    #     else:
+    #         filtered_vel_x = np.cumsum(filtered_acc_x) * (time[i] - time[i-1])
+    #         filtered_vel_y = np.cumsum(filtered_acc_y) * (time[i] - time[i-1])
 
     # filtered_vel_x = np.cumsum(filtered_acc_x) * dt1
     # filtered_vel_y = np.cumsum(filtered_acc_y) * dt1
@@ -151,41 +135,41 @@ if __name__ == "__main__":
     q1_dot_data = []
     q2_dot_data = []
 
-    for i in range(len(filtered_vel_x)):
-        # q1, q2
-        # q2 = np.arccos(((filtered_vel_x[i]**2 + filtered_vel_y[i]**2) - l1**2 - l2**2) / (2*l1*l2))
-        q2=0
-        # print('q2 =', q2)
-        # alpha = l1 + l2*np.cos(q2)
-        # beta = l2*np.sin(q2)
-        # A = -beta * filtered_vel_x[i] + alpha * filtered_vel_y[i]
-        # B = alpha * filtered_vel_x[i] + beta * filtered_vel_y[i]
-        # print('A, B =',A, B)
-        # # q1
-        q1 = np.arctan2(filtered_vel_y[i], filtered_vel_x[i])
-        # if (B >= 0):
-        #     q1 = np.arctan(A/B)
-        # elif (B < 0) and (A >= 0):
-        #     q1 = np.arctan(A/B) + np.pi
-        # else:
-        #     q1 = np.arctan(A/B) - np.pi
-        # print('q1 =', q1)
-        # Jacobian matrix
-        # J_q = np.array([[-l1*np.sin(q1) - l2*np.sin(q1+q2), - l2*np.sin(q1+q2)],
-        #                 [-l1*np.cos(q1) + l2*np.cos(q1+q2), l2*np.cos(q1+q2)]])
-        J_q = np.array([[-l1*np.sin(q1) , 0],
-                        [-l1*np.cos(q1) , 0]])
-        # print('J_q =', J_q)
-        # print("inv J_q = ", np.linalg.pinv(J_q))
-        # q_dot
-        q_dot = np.dot(np.linalg.pinv(J_q), np.array([filtered_vel_x[i], filtered_vel_y[i]]))
-        q1_dot = q_dot[0]
-        q2_dot = q_dot[1]
-        # print('q_dot =', q_dot)
-        # print('q1_dot =', q1_dot)
-        # print('q2_dot =', q2_dot)
-        q1_dot_data.append(q1_dot)
-        q2_dot_data.append(q2_dot)
+    # for i in range(len(filtered_vel_x)):
+    #     # q1, q2
+    #     # q2 = np.arccos(((filtered_vel_x[i]**2 + filtered_vel_y[i]**2) - l1**2 - l2**2) / (2*l1*l2))
+    #     q2=0
+    #     # print('q2 =', q2)
+    #     # alpha = l1 + l2*np.cos(q2)
+    #     # beta = l2*np.sin(q2)
+    #     # A = -beta * filtered_vel_x[i] + alpha * filtered_vel_y[i]
+    #     # B = alpha * filtered_vel_x[i] + beta * filtered_vel_y[i]
+    #     # print('A, B =',A, B)
+    #     # # q1
+    #     q1 = np.arctan2(filtered_vel_y[i], filtered_vel_x[i])
+    #     # if (B >= 0):
+    #     #     q1 = np.arctan(A/B)
+    #     # elif (B < 0) and (A >= 0):
+    #     #     q1 = np.arctan(A/B) + np.pi
+    #     # else:
+    #     #     q1 = np.arctan(A/B) - np.pi
+    #     # print('q1 =', q1)
+    #     # Jacobian matrix
+    #     # J_q = np.array([[-l1*np.sin(q1) - l2*np.sin(q1+q2), - l2*np.sin(q1+q2)],
+    #     #                 [-l1*np.cos(q1) + l2*np.cos(q1+q2), l2*np.cos(q1+q2)]])
+    #     J_q = np.array([[-l1*np.sin(q1) , 0],
+    #                     [-l1*np.cos(q1) , 0]])
+    #     # print('J_q =', J_q)
+    #     # print("inv J_q = ", np.linalg.pinv(J_q))
+    #     # q_dot
+    #     q_dot = np.dot(np.linalg.pinv(J_q), np.array([filtered_vel_x[i], filtered_vel_y[i]]))
+    #     q1_dot = q_dot[0]
+    #     q2_dot = q_dot[1]
+    #     # print('q_dot =', q_dot)
+    #     # print('q1_dot =', q1_dot)
+    #     # print('q2_dot =', q2_dot)
+    #     q1_dot_data.append(q1_dot)
+    #     q2_dot_data.append(q2_dot)
 
     #======================================畫圖==========================================#
     # plt.figure(figsize=(8, 4))
@@ -224,7 +208,7 @@ if __name__ == "__main__":
 
 #=================================================馬達速度估測=================================================#
     # 估測器
-    clip = 2000
+    clip = 300
     pos_1_clip = pos_1[:clip]
     t2_clip = t2[:clip]
 
@@ -233,9 +217,13 @@ if __name__ == "__main__":
     # pose, vele, acce, Q_pos, Q_acc, Q_vel, u_p_values, u_v_values, u_a_values, Q_save, x_data_all, P_data_all, vel1_values, vel2_values, acc1_values, acc2_values, x_RTS, vel_gls_data, acc_gls_data = AKF_GLS.AKF(dt2, pos_1_clip)
     # pose, vele, acce, Q_pos, Q_acc, Q_vel, u_p_values, u_v_values, u_a_values, Q_save, x_data_all, P_data_all, vel1_values, vel2_values, acc1_values, acc2_values, x_RTS = AKF.AKF(dt2, pos_1)
     #================================================== LAE =================================================#
-    acc_LAE = LAE.LAE(dt2, pos_1_clip)
+    LAE_acce = LAE.LAE(dt2, pos_1_clip)
     #================================================== LSF =================================================#
-    vel_LSF = LSF.LSF14(pos_1_clip)
+    LSF_vele = LSF.LSF14(pos_1_clip)
+    LSF28_vele = LSF.LSF28(pos_1_clip)
+    LSF28_acce = LSF.LSF28_Acc(pos_1_clip)
+    #================================================== CFD =================================================#
+    CFD_pose, CFD_vele, CFD_acce = CFD.CFD(pos_1_clip)
     
     # IMU收到的角速度及角加速度
     plt.figure(figsize=(8, 4))
@@ -276,7 +264,7 @@ if __name__ == "__main__":
     plt.plot(time2[315:773]-time2[315], (-acc_y/(l1/1000))[315:773], label="IMU acc", linewidth=1)
     plt.plot(time2[315:773]-time2[315], (-filtered_acc_y/(l1/1000))[315:773], label="Filtered IMU acc", linewidth=1)
     plt.plot(t2, acccmd_1, label="acccmd", linewidth=1) 
-    # plt.plot(t2, acc_LAE, label="acc_LAE", linewidth=1)
+    # plt.plot(t2, LAE_acce, label="LAE_acce", linewidth=1)
     plt.legend(loc='upper right')
     plt.xlabel("t")
     plt.ylabel("acc(rad/s^2)")
@@ -311,29 +299,67 @@ if __name__ == "__main__":
     plt.ylabel("acc(rad/s^2)")
 
 #-------------------------------------------------#
-    # IMU與馬達資料比較
-    plt.figure(figsize=(8, 4))
+    # IMU資料
+    plt.figure(figsize=(10, 6))
     plt.subplot(2, 1, 1)
-    plt.title("Scara Encoder & IMU Data", loc="center")
+    plt.suptitle("IMU Data", fontsize=14, fontweight='bold')
+    # plt.plot(t2_clip, LSF28_vele, label="LSF28 vele", linewidth=1)
     # plt.plot(t2, vel_1, label="vel", linewidth=1)
     # 7
     # plt.plot(time2[287:752]-time2[287], -gyro_z[287:752], label="IMU acc", linewidth=1)
     # 8
     plt.plot(time2[315:773]-time2[315], -gyro_z[315:773], label="IMU vel", linewidth=1)
     # plt.plot(t2, velcmd_1, label="velcmd", linewidth=1)
-    plt.plot(t2_clip, vele, label="vel_AKF", linewidth=1)
+    # plt.plot(t2_clip, vele, "red", label="AKF vele", linewidth=1)
+    # plt.plot(t2_clip, CFD_vele, label="CFD_vele", linewidth=1)
     plt.legend(loc='upper right')
     plt.xlabel("t")
     plt.ylabel("vel(rad/s)")
+    plt.title("Axis_1 Velocity", loc="center")
     plt.subplot(2, 1, 2)
+    # plt.plot(t2_clip, LSF28_acce, label="LSF28 acce", linewidth=1)
     # 7
     # plt.plot(time2[287:752]-time2[287], (-acc_y/(l1/1000))[287:752], label="IMU acc", linewidth=1)
     # plt.plot(time2[287:752]-time2[287], (-filtered_acc_y/(l1/1000))[287:752], label="Filtered IMU acc", linewidth=1)
     # 8
     # plt.plot(time2[315:773]-time2[315], (-acc_y/(l1/1000))[315:773], label="IMU acc", linewidth=1)
     plt.plot(time2[315:773]-time2[315], (-filtered_acc_y/(l1/1000))[315:773], label="IMU acc", linewidth=1)
-    plt.plot(t2_clip, acce, label="acc_AKF", linewidth=1)
-    plt.plot(t2_clip, acc_LAE, label="acc_LAE", linewidth=1)
+    # plt.plot(t2_clip, acce, "red", label="AKF acce", linewidth=1)
+    # plt.plot(t2_clip, LAE_acce, label="LAE acce", linewidth=1)
+    # plt.plot(t2_clip, CFD_acce, label="CFD_acce", linewidth=1)
+    plt.legend(loc='upper right')
+    plt.xlabel("t")
+    plt.ylabel("acc(rad/s^2)")
+    plt.title("Axis_1 Acceleration", loc="center")
+    plt.tight_layout()
+
+    # IMU與馬達資料比較
+    plt.figure(figsize=(8, 4))
+    plt.subplot(2, 1, 1)
+    plt.title("Scara Encoder & IMU Data", loc="center")
+    plt.plot(t2_clip, LSF28_vele, label="LSF28 vele", linewidth=1)
+    # plt.plot(t2, vel_1, label="vel", linewidth=1)
+    # 7
+    # plt.plot(time2[287:752]-time2[287], -gyro_z[287:752], label="IMU acc", linewidth=1)
+    # 8
+    plt.plot(time2[315:773]-time2[315], -gyro_z[315:773], label="IMU vele", linewidth=1)
+    # plt.plot(t2, velcmd_1, label="velcmd", linewidth=1)
+    plt.plot(t2_clip, vele, "red", label="AKF vele", linewidth=1)
+    # plt.plot(t2_clip, CFD_vele, label="CFD_vele", linewidth=1)
+    plt.legend(loc='upper right')
+    plt.xlabel("t")
+    plt.ylabel("vel(rad/s)")
+    plt.subplot(2, 1, 2)
+    plt.plot(t2_clip, LSF28_acce, label="LSF28 acce", linewidth=1)
+    # 7
+    # plt.plot(time2[287:752]-time2[287], (-acc_y/(l1/1000))[287:752], label="IMU acc", linewidth=1)
+    # plt.plot(time2[287:752]-time2[287], (-filtered_acc_y/(l1/1000))[287:752], label="Filtered IMU acc", linewidth=1)
+    # 8
+    # plt.plot(time2[315:773]-time2[315], (-acc_y/(l1/1000))[315:773], label="IMU acc", linewidth=1)
+    plt.plot(time2[315:773]-time2[315], (-filtered_acc_y/(l1/1000))[315:773], label="IMU acc", linewidth=1)
+    plt.plot(t2_clip, acce, "red", label="AKF acce", linewidth=1)
+    plt.plot(t2_clip, LAE_acce, label="LAE acce", linewidth=1)
+    # plt.plot(t2_clip, CFD_acce, label="CFD_acce", linewidth=1)
     plt.legend(loc='upper right')
     plt.xlabel("t")
     plt.ylabel("acc(rad/s^2)")
@@ -342,30 +368,39 @@ if __name__ == "__main__":
     plt.figure(figsize=(8, 4))
     plt.subplot(2, 1, 1)
     plt.title("Scara Encoder & IMU Data after stable", loc="center")
+    plt.plot(t2_clip[200:], LSF28_vele[200:], label="LSF28 vele", linewidth=1)
     # plt.plot(t2, vel_1, label="vel", linewidth=1)
     # 7
     # plt.plot(time2[287:752]-time2[287], -gyro_z[287:752], label="IMU acc", linewidth=1)
     # 8
-    plt.plot(time2[315:773]-time2[315], -gyro_z[315:773], label="IMU vel", linewidth=1)
+    plt.plot(time2[315:773]-time2[315], -gyro_z[315:773], label="IMU vele", linewidth=1)
     # plt.plot(t2, velcmd_1, label="velcmd", linewidth=1)
-    plt.plot(t2_clip[200:], vele[200:], label="vel_AKF", linewidth=1)
-    plt.plot(t2_clip[200:], vel_LSF[200:], label="vel_LSF", linewidth=1)
+    plt.plot(t2_clip[200:], vele[200:], "red", label="AKF vele", linewidth=1)
+    plt.plot(t2_clip[200:], LSF_vele[200:], label="LSF14 vele", linewidth=1)
+    # plt.plot(t2_clip[200:], CFD_vele[200:], label="CFD_vele", linewidth=1)
     plt.legend(loc='upper right')
     plt.xlabel("t")
     plt.ylabel("vel(rad/s)")
     plt.subplot(2, 1, 2)
+    plt.plot(t2_clip[200:], LSF28_acce[200:], label="LSF28 acce", linewidth=1)
     # 7
     # plt.plot(time2[287:752]-time2[287], (-acc_y/(l1/1000))[287:752], label="IMU acc", linewidth=1)
     # plt.plot(time2[287:752]-time2[287], (-filtered_acc_y/(l1/1000))[287:752], label="Filtered IMU acc", linewidth=1)
     # 8
-    plt.plot(time2[315:773]-time2[315], (-acc_y/(l1/1000))[315:773], label="IMU acc", linewidth=1)
-    plt.plot(time2[315:773]-time2[315], (-filtered_acc_y/(l1/1000))[315:773], label="Filtered IMU acc", linewidth=1)
-    plt.plot(t2_clip[200:], acce[200:], label="acc_AKF", linewidth=1)
-    plt.plot(t2_clip[200:], acc_LAE[200:], label="acc_LAE", linewidth=1)
+    # plt.plot(time2[315:773]-time2[315], (-acc_y/(l1/1000))[315:773], label="IMU acce", linewidth=1)
+    plt.plot(time2[315:773]-time2[315], (-filtered_acc_y/(l1/1000))[315:773], label="IMU acce", linewidth=1) # filtered
+    plt.plot(t2_clip[200:], acce[200:], "red", label="AKF acce", linewidth=1)
+    plt.plot(t2_clip[200:], LAE_acce[200:], label="LAE14 acce", linewidth=1)
+    # plt.plot(t2_clip[200:], CFD_acce[200:], label="CFD_acce", linewidth=1)
     plt.legend(loc='upper right')
     plt.xlabel("t")
     plt.ylabel("acc(rad/s^2)")
-    
+
+    #=================================================誤差計算=================================================#
+    # 用內插法處理之後的gyro_z、filtered_acc_y進行誤差計算
+    result = calError.calError(-gyro_z_interp[:clip], (-filtered_acc_y_interp/(l1/1000))[:clip], vele, acce, LSF_vele, LAE_acce, CFD_vele, CFD_acce, LSF28_vele, LSF28_acce)
+    result = calError.calError2(-gyro_z_interp[400:clip], (-filtered_acc_y_interp/(l1/1000))[400:clip], vele[400:clip], acce[400:clip], LSF_vele[400:clip], LAE_acce[400:clip], CFD_vele[400:clip], CFD_acce[400:clip], LSF28_vele[400:clip], LSF28_acce[400:clip])
+
     plt.show()
 
 

@@ -244,7 +244,7 @@ def AKF(dt, Pos):
         # print("u_p=", u_p)
         u_p_values.append(u_p)
         n = i + 1
-        N = 10
+        N = 5
 
         u_sqr = [val**2 for val in u_p_values[:n]]
         # M = sum(u_sqr[:n])/n
@@ -297,7 +297,7 @@ def AKF(dt, Pos):
             v2 = (cov_xtrue_vtrue / cov_xtrue_xtrue)
             # v2 = 2
             # u_v = v2 * (Pos[i] - x_mean) + v_mean - xm[1] 
-            u_v = 10 * (Pos[i] - x_mean) + v_mean - xm[1] 
+            u_v = 1 * (Pos[i] - x_mean) + v_mean - xm[1] 
             # v2 = (Pm[0][1] / Pm[0][0])
             # u_v = u_p *0.1
         else:
@@ -533,7 +533,7 @@ def AKF(dt, Pos):
         #     count2 = count2 + 1
 
         ## 求Q_hat
-        Q_hat = S * M *1e-1 #*1e3 #*1e-1
+        Q_hat = S * M *1e-2 #*1e3 #*1e-1/1e-2
         Q[2, 2] = Q_hat
 
         # if np.abs(u_a_values[i]) > np.abs(u_a_values[i-1]):
